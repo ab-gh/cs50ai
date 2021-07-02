@@ -55,7 +55,7 @@ def winner(board):
     runs = [
         # Horizontals
         [(0, 0), (0, 1), (0, 2)],
-        [(1, 0), (1, 1), (1, 1)], 
+        [(1, 0), (1, 1), (1, 2)], 
         [(2, 0), (2, 1), (2, 2)],
         # Verticals
         [(0, 0), (1, 0), (2, 0)], 
@@ -99,4 +99,61 @@ def minimax(board):
     """
     Returns the optimal action for the current player on the board.
     """
-    raise NotImplementedError
+    alpha = -math.inf
+    beta = math.inf
+    def pruning(board, player, alpha, beta):
+        # if end-game is reached
+        if terminal(board):
+            # return the board's utility
+            return utility(board)
+        elif player is X:
+            # start low to work up
+            v = -math.inf
+            for action in actions(board):
+                # choose the highest of the immediate options for this move
+                v = max(v, pruning(result(board, action), O, alpha, beta))
+                # replace alpha with v if v is higher
+                alpha = max(alpha, v)
+                # if above the beta threshold
+                if alpha >= beta:
+                    # value found
+                    break
+            return v
+        elif player is O:
+            v = math.inf
+            for action in actions(board):
+                v = min(v, pruning(result(board, action), X, alpha, beta))
+                beta = min(beta, v)
+                if alpha >= beta:
+                    break
+            return v
+
+    if terminal(board):
+        # End of Play
+        move = None
+    elif board is [[EMPTY]*3]*3:
+        # Blank board, go for center
+        move = (1, 1)
+    if player(board) is X:
+        # Start low to work up
+        v = -math.inf
+        for action in actions(board):
+            # start searching down choices with alpha-beta pruning
+            v_prime = pruning(result(board, action), O, alpha, beta)
+            alpha = max(v, v_prime)
+            if v_prime > v:
+                v = v_prime
+                move = action
+    elif player(board) is O:
+        v = math.inf
+        for action in actions(board):
+            v_prime = pruning(result(board, action), X, alpha, beta)
+            beta = min(v, v_prime)
+            if v_prime < v:
+                v = v_prime
+                move = action
+    else:
+        raise KeyboardInterrupt("Unexpected state.")
+    return move
+
+    
