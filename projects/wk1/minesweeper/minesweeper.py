@@ -1,5 +1,6 @@
 import itertools
 import random
+import copy
 
 
 class Minesweeper():
@@ -106,7 +107,7 @@ class Sentence():
         Returns the set of all cells in self.cells known to be mines.
         """
         if len(self.cells) == self.count:
-            return set(self.cells)
+            return copy.deepcopy(set(self.cells))
         else:
             return set()
 
@@ -114,8 +115,8 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be safe.
         """
-        if self.cells == 0:
-            return set(self.cells)
+        if self.count == 0:
+            return copy.deepcopy(set(self.cells))
         else:
             return set()
 
@@ -192,7 +193,7 @@ class MinesweeperAI():
                if they can be inferred from existing knowledge
         """
         # Add this cell as safe
-        self.safes.add(cell)
+        self.mark_safe(cell)
         # Add this move as made
         self.moves_made.add(cell)
         # Get surrounding cells
@@ -216,30 +217,34 @@ class MinesweeperAI():
             inferences = self.infer()
 
     def update(self):
+        to_remove = []
         for sentence in self.knowledge:
             # Clean up empty sets
             if len(sentence.cells) == 0:
-                self.knowledge.remove(sentence)
+                to_remove.append(sentence)
             for safe in sentence.known_safes():
                 self.mark_safe(safe)
             for mine in sentence.known_mines():
                 self.mark_mine(mine)
+        self.knowledge = [s for s in self.knowledge if s not in to_remove]
     
     def infer(self):
         inferences = []
+        to_remove = []
         for s1 in self.knowledge:
             if len(s1.cells) == 0:
-                self.knowledge.remove(s1)
+                to_remove.append(s1)
                 continue
             for s2 in self.knowledge:
                 if len(s2.cells) == 0:
-                    self.knowledge.remove(s2)
+                    to_remove.append(s2)
                     continue
                 if s1 != s2:
                     if s2.cells.issubset(s1.cells):
                         new_sentence = Sentence(s1.cells.difference(s2.cells), s1.count-s2.count)
                         if new_sentence not in self.knowledge:
                             inferences.append(new_sentence)
+        self.knowledge = [s for s in self.knowledge if s not in to_remove]
         return inferences
 
     def make_safe_move(self):
