@@ -11,22 +11,51 @@ CKnave = Symbol("C is a Knave")
 
 # Puzzle 0
 # A says "I am both a knight and a knave."
+AStatement0 = And(AKnight, AKnave)
 knowledge0 = And(
-    # TODO
+    # Context
+    Not(Biconditional(AKnight, AKnave)), # A is a knight or a knave but not both
+    # Statements
+    Or(
+        Biconditional(AKnight, AStatement0), # If A is a knight their statement is the truth
+        Biconditional(AKnave, Not(AStatement0)) # If A is a knave their statement is false
+    ) 
 )
 
 # Puzzle 1
 # A says "We are both knaves."
 # B says nothing.
+AStatement1 = And(AKnave, BKnave)
+BStatement1 = ()
 knowledge1 = And(
-    # TODO
+    # Context
+    Not(Biconditional(AKnight, AKnave)),
+    Not(Biconditional(BKnight, BKnave)),
+    # Statements
+    Or(
+        Biconditional(AKnight, AStatement1),
+        Biconditional(AKnave, Not(AStatement1))
+    )
 )
 
 # Puzzle 2
 # A says "We are the same kind."
 # B says "We are of different kinds."
+AStatement2 = Or(And(AKnight, BKnight), And(AKnave, BKnave))
+BStatement2 = Or(And(AKnight, BKnave), And(AKnave, BKnight))
 knowledge2 = And(
-    # TODO
+    # Context
+    Not(Biconditional(AKnight, AKnave)),
+    Not(Biconditional(BKnight, BKnave)),
+    # Statements
+    Or(
+        Biconditional(AKnight, AStatement2),
+        Biconditional(AKnave, Not(AStatement2))
+    ),
+    Or(
+        Biconditional(BKnight, BStatement2),
+        Biconditional(BKnave, Not(BStatement2))
+    )
 )
 
 # Puzzle 3
@@ -34,8 +63,32 @@ knowledge2 = And(
 # B says "A said 'I am a knave'."
 # B says "C is a knave."
 # C says "A is a knight."
+AStatement3 = Or(AKnight, AKnave)
+BStatement3 = And(
+    Or(
+        Biconditional(AKnave, Not(AKnave)), # If A is a Knave, their claimed statement would be false
+        Biconditional(AKnight, AKnave) # If A is a Knight, their claimed statement would be true
+    ),
+    CKnave)
+CStatement3 = AKnight
 knowledge3 = And(
-    # TODO
+    # Context
+    Not(Biconditional(AKnight, AKnave)),
+    Not(Biconditional(BKnight, BKnave)),
+    Not(Biconditional(CKnight, CKnave)),
+    # Statements
+    Or(
+        Biconditional(AKnight, AStatement3),
+        Biconditional(AKnave, Not(AStatement3))
+    ),
+    Or(
+        Biconditional(BKnight, BStatement3),
+        Biconditional(BKnave, Not(BStatement3))
+    ),
+    Or(
+        Biconditional(CKnight, CStatement3),
+        Biconditional(CKnave, Not(CStatement3))
+    )
 )
 
 
