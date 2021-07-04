@@ -128,6 +128,9 @@ class Sentence():
         if cell in self.cells:
             self.cells.remove(cell)
             self.count -= 1
+            return True
+        else:
+            return False
 
     def mark_safe(self, cell):
         """
@@ -136,6 +139,9 @@ class Sentence():
         """
         if cell in self.cells:
             self.cells.remove(cell)
+            return True
+        else:
+            return False
 
 
 class MinesweeperAI():
@@ -164,18 +170,24 @@ class MinesweeperAI():
         Marks a cell as a mine, and updates all knowledge
         to mark that cell as a mine as well.
         """
+        flags = 0
         self.mines.add(cell)
         for sentence in self.knowledge:
-            sentence.mark_mine(cell)
+            flag = sentence.mark_mine(cell)
+            if flag: flags += 1
+        return flags
 
     def mark_safe(self, cell):
         """
         Marks a cell as safe, and updates all knowledge
         to mark that cell as safe as well.
         """
+        flags = 0
         self.safes.add(cell)
         for sentence in self.knowledge:
-            sentence.mark_safe(cell)
+            flag = sentence.mark_safe(cell)
+            if flag: flags += 1
+        return flags
 
     def add_knowledge(self, cell, count):
         """
@@ -217,16 +229,30 @@ class MinesweeperAI():
             inferences = self.infer()
 
     def update(self):
-        to_remove = []
-        for sentence in self.knowledge:
-            # Clean up empty sets
-            if len(sentence.cells) == 0:
-                to_remove.append(sentence)
-            for safe in sentence.known_safes():
-                self.mark_safe(safe)
-            for mine in sentence.known_mines():
-                self.mark_mine(mine)
-        self.knowledge = [s for s in self.knowledge if s not in to_remove]
+        repeats = 1
+        while repeats != 0:
+            repeats = 0
+            to_remove = []
+            print("--- UPDATE DUMP ---") # TODO remove
+            for sentence in self.knowledge:
+                print(f"Sentence: {sentence}")
+                # Clean up empty sets
+                if len(sentence.cells) == 0:
+                    print(f"\tFound empty sentence {sentence}")
+                    to_remove.append(sentence)
+                for safe in sentence.known_safes():
+                    print(f"\tMarking a known safe: {safe}")
+                    repeats += self.mark_safe(safe)
+                for mine in sentence.known_mines():
+                    print(f"\tMarking a known mine: {mine}")
+                    repeats += self.mark_mine(mine)
+            self.knowledge = [s for s in self.knowledge if s not in to_remove]
+            for sentence in self.knowledge:
+                print(sentence)
+            print("---Mines DUMP---")
+            print(self.mines)
+            print("---Safes DUMP---")
+            print(self.safes)
     
     def infer(self):
         inferences = []
@@ -245,6 +271,13 @@ class MinesweeperAI():
                         if new_sentence not in self.knowledge:
                             inferences.append(new_sentence)
         self.knowledge = [s for s in self.knowledge if s not in to_remove]
+        print("--- INFER DUMP ---") # TODO remove
+        for sentence in self.knowledge:
+            print(sentence)
+        print("---Mines DUMP---")
+        print(self.mines)
+        print("---Safes DUMP---")
+        print(self.safes)
         return inferences
 
     def make_safe_move(self):
