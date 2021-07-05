@@ -75,7 +75,6 @@ class Minesweeper():
                 if 0 <= i < self.height and 0 <= j < self.width:
                     if self.board[i][j]:
                         count += 1
-
         return count
 
     def won(self):
@@ -106,7 +105,10 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be mines.
         """
+        # If the number of cells is equal to the number of counts
         if len(self.cells) == self.count:
+            # Return a copy of the cells
+            # While deepcopy's arent strictly needed, let's play it safe
             return copy.deepcopy(set(self.cells))
         else:
             return set()
@@ -115,7 +117,9 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be safe.
         """
+        # If the cells are equal to zero
         if self.count == 0:
+            # Return a copy of the cells
             return copy.deepcopy(set(self.cells))
         else:
             return set()
@@ -126,8 +130,11 @@ class Sentence():
         a cell is known to be a mine.
         """
         if cell in self.cells:
+            # Remove the mine from the sentence
             self.cells.remove(cell)
+            # Remove the mine from the count
             self.count -= 1
+            # Return True to flag the removal
             return True
         else:
             return False
@@ -138,7 +145,9 @@ class Sentence():
         a cell is known to be safe.
         """
         if cell in self.cells:
+            # Remove the safe from the sentence
             self.cells.remove(cell)
+            # Return True to flag the removal
             return True
         else:
             return False
@@ -171,9 +180,12 @@ class MinesweeperAI():
         to mark that cell as a mine as well.
         """
         flags = 0
+        # Add the mine to the internal list
         self.mines.add(cell)
         for sentence in self.knowledge:
+            # Remove the mine from each sentence
             flag = sentence.mark_mine(cell)
+            # Count up how many times the mine was removed from a sentence
             if flag: flags += 1
         return flags
 
@@ -186,6 +198,7 @@ class MinesweeperAI():
         self.safes.add(cell)
         for sentence in self.knowledge:
             flag = sentence.mark_safe(cell)
+            # Count up how many times the safe was removed from a sentence
             if flag: flags += 1
         return flags
 
@@ -210,74 +223,80 @@ class MinesweeperAI():
         self.moves_made.add(cell)
         # Get surrounding cells
         surrounding = set()
+        # For each cell in the range n-1 to n+1 in the x and y coordinates
         for c in itertools.product(*(range(n-1, n+2) for n in cell)):
+            # If this cell isnt the cell itsself, and it is between the grid borders
             if c != cell and 0 <= c[0] < self.height and 0 <= c[1] < self.width:
+                # Add it to the surrounding cells
                 surrounding.add(c)
         # Remove the safe cells and moves made from surrounding cells
         surrounding -= self.safes | self.moves_made
         # Add a new knowledge sentence
-        print(f"Updating KB: {surrounding}={count}")
         self.knowledge.append(Sentence(surrounding, count))
         # Get new safes and mines
         self.update()
         # Make new inferences
         inferences = self.infer()
+        # While there are inferences we can make
         while inferences:
             for sentence in inferences:
+                # Add the inferences to the knoledge
                 self.knowledge.append(sentence)
+            # Get the new safes and mines
             self.update()
+            # Make new inferences
             inferences = self.infer()
 
     def update(self):
+        # Start with one repeat of updating
         repeats = 1
         while repeats != 0:
+            # No new repeats by default
             repeats = 0
+            # Track empty sentences
             to_remove = []
-            print("--- UPDATE DUMP ---") # TODO remove
+            # For each sentence
             for sentence in self.knowledge:
-                print(f"Sentence: {sentence}")
                 # Clean up empty sets
                 if len(sentence.cells) == 0:
-                    print(f"\tFound empty sentence {sentence}")
                     to_remove.append(sentence)
+                # Add the sentences known safes to the internal list
                 for safe in sentence.known_safes():
-                    print(f"\tMarking a known safe: {safe}")
+                    # Flag another repeat if any sentences were updated
                     repeats += self.mark_safe(safe)
                 for mine in sentence.known_mines():
-                    print(f"\tMarking a known mine: {mine}")
+                    # Flag another repeat if any sentences were updated
                     repeats += self.mark_mine(mine)
+            # Clean out the empty sets
             self.knowledge = [s for s in self.knowledge if s not in to_remove]
-            for sentence in self.knowledge:
-                print(sentence)
-            print("---Mines DUMP---")
-            print(self.mines)
-            print("---Safes DUMP---")
-            print(self.safes)
-    
+            
     def infer(self):
         inferences = []
         to_remove = []
+        # Iterate over every sentence
         for s1 in self.knowledge:
             if len(s1.cells) == 0:
+                # Clean up empty sets
                 to_remove.append(s1)
                 continue
+            # Iterate over every sentence again
             for s2 in self.knowledge:
                 if len(s2.cells) == 0:
+                    # Clean up empty sets
                     to_remove.append(s2)
                     continue
+                # If the two sentences aren't the same
                 if s1 != s2:
+                    # And if s2 is a subset of s1
                     if s2.cells.issubset(s1.cells):
+                        # An inference can be made
                         new_sentence = Sentence(s1.cells.difference(s2.cells), s1.count-s2.count)
+                        # If this inference isn't already known
                         if new_sentence not in self.knowledge:
+                            # Add the new sentence inferred
                             inferences.append(new_sentence)
+        # Clean out the empty sets
         self.knowledge = [s for s in self.knowledge if s not in to_remove]
-        print("--- INFER DUMP ---") # TODO remove
-        for sentence in self.knowledge:
-            print(sentence)
-        print("---Mines DUMP---")
-        print(self.mines)
-        print("---Safes DUMP---")
-        print(self.safes)
         return inferences
 
     def make_safe_move(self):
@@ -289,17 +308,10 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        
+        # Find a safe move
         for move in self.safes:
+            # If the move hasn't already been made and isnt a mine
             if move not in self.moves_made and move not in self.mines:
-                print("--- KB DUMP ---") # TODO remove
-                for sentence in self.knowledge:
-                    print(sentence)
-                print("---Mines DUMP---")
-                print(self.mines)
-                print("---Safes DUMP---")
-                print(self.safes)
-                print("Safe Move: ", move) # TODO remove
                 return move
         return None
 
@@ -310,16 +322,10 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        print("--- KB DUMP ---") # TODO remove
-        for sentence in self.knowledge:
-            print(sentence)
-        print("---Mines DUMP---")
-        print(self.mines)
-        print("---Safes DUMP---")
-        print(self.safes)
+        # Start in the top left
         for x in range(0, self.width):
             for y in range(0, self.height):
+                # If the random move hasn't been made and isn't a mine
                 if (x, y) not in self.moves_made and (x, y) not in self.mines:
-                    print("Random Move: ", (x, y)) #TODO remove
                     return (x, y)
         return None
