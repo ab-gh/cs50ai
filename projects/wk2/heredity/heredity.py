@@ -44,10 +44,6 @@ def main():
     if len(sys.argv) != 2:
         sys.exit("Usage: python heredity.py data.csv")
     people = load_data(sys.argv[1])
-    # DEBUG: remove
-    print("-- DEBUG: People --")
-    for name, person in people.items():
-        print(name, person)    
     # Keep track of gene and trait probabilities for each person
     probabilities = {
         person: {
@@ -63,10 +59,6 @@ def main():
         }
         for person in people
     }
-    # DEBUG: remove
-    print("-- DEBUG: Probabilities --")
-    for person, prob in probabilities.items():
-        print(person, prob)
     # Loop over all sets of people who might have the trait
     names = set(people)
     for have_trait in powerset(names):
@@ -146,83 +138,89 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
-    # generate set for zero carrier genes
+    ## trait_probability: phenotype scenario probability
+    ## gene_number_probability: genotype scenario probability
+    # generate set for zero genes
     zero_genes = people.keys() - (one_gene | two_genes)
-    # DEBUG remove
-    print("### NEW TRIAL ###")
-    print(f"  zero genes: {zero_genes}")
-    print(f"  one gene  : {one_gene}")
-    print(f"  two genes : {two_genes}")
-    print(f"  trait     : {have_trait}")
-    print(f"  no trait  : {people.keys() - have_trait}")
     # initialise probability at 1
     total_probability = 1
     # compute total probability of given scenario
     for person in people:
-        # DEBUG remove
-        print(f"  >> {person}: {'TWO genes' if person in two_genes else 'ONE gene' if person in one_gene else 'ZERO genes'}{', trait' if person in have_trait else ''} <<")
+        # retrieve person's phenotype probability (list comp)
+        trait_probability = PROBS['trait'][2 if person in two_genes else 1 if person in one_gene else 0][person in have_trait]
         # check if person has parents in set
         if people[person]["mother"] == None or people[person]["father"] == None:
-            partial_probability = PROBS["gene"][2 if person in two_genes else 1 if person in one_gene else 0]
-            trait_probability = PROBS['trait'][2 if person in two_genes else 1 if person in one_gene else 0][person in have_trait]
-            # DEBUG remove
-            print(f"     gene p : {partial_probability}")
-            print(f"     trait p: {trait_probability}")
+            # If there are no parents, assume and retrieve unconditional genotype
+            gene_number_probability = PROBS["gene"][2 if person in two_genes else 1 if person in one_gene else 0]
         else:
             # retrieve parents
             mother = people[person]["mother"]
             father = people[person]["father"]
             # initialise parent's probabilities at 1
+            ## these are later combined for the genotype probability given the persons's genotype in this scenario
+            ## 0: (1-mother) + (1-father)
+            ## 1: (1-mother)(father) + (1-father)(mother)
+            ## 2: mother + father
+            ## mutation is ignored for single-gene carriers as the mutation effects cancel out in all cases
             parent_probability = dict()
             for parent in [mother, father]:
                 parent_probability[parent] = 1
             # find how many genes person has
             if person in zero_genes:
+                # If genotype scenario is zero genes, use multiplicative probabiltiy of *not* carrying the gene
                 for parent in [mother, father]:
                     if parent in zero_genes:
                         # Child only inherits bad gene if mutation occours
-                        parent_probability[parent] *= PROBS['mutation'] # TODO check correct
+                        parent_probability[parent] *= PROBS['mutation']
                     elif parent in one_gene:
                         # Child inherits 'half' a bad gene
                         parent_probability[parent] *= 0.5
                     elif parent in two_genes:
                         # Child inherits bad gene unless mutation occours
-                        parent_probability[parent] *= (1 - PROBS['mutation']) # TODO check correct
-                trait_probability = PROBS['trait'][0][person in have_trait]
+                        parent_probability[parent] *= (1 - PROBS['mutation'])
+                # Calculate inheritance probability for zero genes
+                gene_number_probability = (1-parent_probability[mother]) * (1-parent_probability[father])
             elif person in one_gene:
+                # If genotype scenario is one gene, use additive probability of the two multiplicative probabilities...
+                # when one parent passes on the gene and the other parent does *not* pass on the gene
                 for parent in [mother, father]:
+                    # retrieve other parent
                     _tmp_other_parent = [p for p in [mother, father] if p != parent][0]
                     if parent in zero_genes:
+                        # Child only inherits bad gene if mutation occours
                         parent_probability[parent] *= PROBS['mutation']
+                        # Child effectively inherits good gene from other parent
                         parent_probability[_tmp_other_parent] *= (1 - PROBS['mutation'])
                     elif parent in one_gene:
+                        # Child inherits 'half' a bad gene from BOTH parents
                         parent_probability[parent] *= 0.5
                         parent_probability[_tmp_other_parent] *= 0.5
                     elif parent in two_genes:
+                        # Child inherits bad gene unless mutation occours
                         parent_probability[parent] *= (1 - PROBS['mutation'])
+                        # Child effectively inherits good gene from other parent
                         parent_probability[_tmp_other_parent] *= PROBS['mutation']
-                trait_probability = PROBS['trait'][1][person in have_trait]
+                # Calculate inheritance probability for one gene
+                gene_number_probability = parent_probability[mother] + parent_probability[father]
             elif person in two_genes:
+                # If genotype scenario is two genes, use multiplicative probabiltiy of carrying both genes
                 for parent in [mother, father]:
                     if parent in zero_genes:
+                        # Child only inherits bad gene if mutation occours
                         parent_probability[parent] *= PROBS['mutation']
                     elif parent in one_gene:
+                        # Child inherits 'half' a gene
                         parent_probability[parent] *= 0.5
                     elif parent in two_genes:
-                        parent_probability[parent] *= PROBS['mutation']
-                trait_probability = PROBS['trait'][2][person in have_trait]
-            partial_probability = parent_probability[mother] + parent_probability[father]
-            # DEBUG remove
-            print(f"     gene p : {partial_probability}")
-            print(f"            : m-> {parent_probability[mother]}")
-            print(f"            : f-> {parent_probability[father]}")
-            print(f"     trait p: {trait_probability}")
-        person_probability = partial_probability * trait_probability
+                        # Child inherits bad gene unless mutation occours
+                        parent_probability[parent] *= (1 - PROBS['mutation'])
+                # Calculate inheritance probability for two genes
+                gene_number_probability = parent_probability[mother] * parent_probability[father]
+        # Calculate person's genotype probability AND phenotype probability
+        person_probability = gene_number_probability * trait_probability
+        # ... previous probabilities AND this probability
         total_probability *= person_probability
-        # DEBUG remove
-        print(f"     PERS p : {person_probability}")
-    # DEBUG remove
-    print(f"  TOTAL TRAIL p: {total_probability}")
+    # return total
     return total_probability
 
 
@@ -256,10 +254,11 @@ def normalize(probabilities):
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
-    print(probabilities)
     for person in probabilities:
+        # Calculate gene and trait probability totals
         gene_total = sum(probabilities[person]['gene'].values())
         trait_total = sum(probabilities[person]['trait'].values())
+        # Divide each value in trait and gene by their totals to normalise (multiply by reciprocal)
         for i in probabilities[person]['gene']:
             probabilities[person]['gene'][i] /= gene_total
         for j in probabilities[person]['trait']:
